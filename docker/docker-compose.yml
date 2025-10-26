@@ -1,0 +1,96 @@
+# LeRobot Docker Compose 환경 구성
+# GPU 지원 및 볼륨 마운트를 포함한 완전한 개발 환경
+
+version: "3.8"
+
+services:
+  lerobot:
+    build: .
+    container_name: lerobot-dev
+    hostname: lerobot-workspace
+
+    # GPU 지원 (NVIDIA GPU가 있는 경우)
+    # docker-compose --profile gpu up 으로 실행
+    profiles:
+      - gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # 포트 매핑
+    ports:
+      - "8888:8888" # Jupyter Notebook
+      - "6006:6006" # TensorBoard
+      - "7860:7860" # Gradio (선택적)
+
+    # 볼륨 마운트
+    volumes:
+      # 로컬 코드를 컨테이너에 마운트
+      - .:/workspace/host
+      # 데이터 디렉토리 (모델, 데이터셋 등)
+      - ./data:/workspace/data
+      # 결과 및 로그 디렉토리
+      - ./outputs:/workspace/outputs
+      # Git 설정 공유
+      - ~/.gitconfig:/root/.gitconfig:ro
+      # SSH 키 공유 (선택적)
+      - ~/.ssh:/root/.ssh:ro
+
+    # 환경 변수
+    environment:
+      - CUDA_VISIBLE_DEVICES=all
+      - PYTHONPATH=/workspace/lerobot
+      - HF_HOME=/workspace/data/.cache/huggingface
+      - WANDB_DIR=/workspace/outputs/wandb
+
+    # 작업 디렉토리
+    working_dir: /workspace
+
+    # 컨테이너를 계속 실행
+    tty: true
+    stdin_open: true
+
+  # CPU 전용 버전
+  lerobot-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: lerobot-cpu-dev
+    hostname: lerobot-cpu-workspace
+
+    # 포트 매핑 (CPU 버전)
+    ports:
+      - "8889:8888" # Jupyter Notebook (다른 포트)
+      - "6007:6006" # TensorBoard (다른 포트)
+
+    # 볼륨 마운트 (GPU 버전과 동일)
+    volumes:
+      - .:/workspace/host
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ~/.gitconfig:/root/.gitconfig:ro
+
+    # 환경 변수
+    environment:
+      - PYTHONPATH=/workspace/lerobot
+      - HF_HOME=/workspace/data/.cache/huggingface
+      - WANDB_DIR=/workspace/outputs/wandb
+
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+
+    # 프로파일 설정
+    profiles:
+      - cpu
+
+volumes:
+  # 영구 데이터 저장소
+  lerobot_data:
+    driver: local
+  lerobot_cache:
+    driver: local
