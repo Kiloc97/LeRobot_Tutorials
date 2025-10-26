@@ -72,4 +72,4 @@ lerobot/
 wandb/
 outputs/
 checkpoints/
-data/
+data/lerobot/
